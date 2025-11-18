@@ -2,9 +2,5 @@
   {
     "username": "testuser",
     "highscore": 42
-  },
-  {
-    "username": "testuser1",
-    "highscore": "49"
   }
 ]

@@ -20,7 +20,7 @@ export default function router(req, res) {
         if (!user.username || typeof user.highscore !== 'number') {
             for(const existingUser of users) {
                 if (existingUser.username === user.username) {
-                    if (user.highscore > existingUser.highscore) {
+                    if (parseInt(user.highscore) > existingUser.highscore) {
                         existingUser.highscore = user.highscore;
                         await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
                         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -40,19 +40,15 @@ export default function router(req, res) {
                 }
 
             }
-            users.push({ username: user.username, highscore: user.highscore });
-            await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
-            res.writeHead(201, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'User added' }));
-            let content = await fs.readFile(filePath, 'utf-8');
-            placeholder = 0;
-            for (const user of JSON.parse(content)) {
-                if (user.highscore > placeholder) {
-                    placeholder = user.highscore;
-                }
+            if (user.username.length < 20 && typeof(user.highscore) === 'number') {
+              users.push({ username: user.username, highscore: user.highscore });
+              await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
+              res.writeHead(201, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ message: 'User added' }));
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ message: 'Invalid user data' }));
             }
-          res.writeHead(400, { 'Content-Type': 'text/plain' });
-          res.end('Invalid user data, highscore: ' + placeholder);
         }
       } catch (error) {
         let content = await fs.readFile(filePath, 'utf-8');

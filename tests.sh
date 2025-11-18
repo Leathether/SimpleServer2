@@ -22,3 +22,8 @@ echo -e "\n---"
 # Test GET /users again to see if user was added
 curl -i "$BASE_URL/users"
 echo -e "\n---"
+
+curl -i -X DELETE "$BASE_URL/delete" \
+    -H "Content-Type: application/json" \
+    -d '{"username":"testuser1"}'
+echo -e "\n---"
