@@ -1,54 +1,41 @@
-import fs from 'fs/promises';
-
-const filePath = './users.json';
+import pool from '../../config/db.js';
+import verifyToken from '../../methods/verifyToken.js';
 
 export default async function deleteRouter(req, res) {
     try {
         // read request body
-        const body = await new Promise((resolve, reject) => {
+        let body = await new Promise((resolve, reject) => {
             let data = '';
             req.on('data', chunk => (data += chunk));
             req.on('end', () => resolve(data));
             req.on('error', err => reject(err));
         });
-
-        let username;
-        try {
-            const parsed = body ? JSON.parse(body) : {};
-            username = parsed.username;
-        } catch (err) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Invalid JSON in request body' }));
+        body = await JSON.parse(body);
+        const connection = await pool.getConnection();
+        let [perms] = await connection.execute(
+            'SELECT powerLevel FROM users WHERE username = ?;',
+            [body.usernameIs]
+        );
+        if (verifyToken(body.token, body.password) == false && perms[0].powerLevel !== 'admin') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Authentication failed' }));
             return;
+        } else if (perms[0].powerLevel === 'admin') {
+            await connection.execute(
+                'DELETE FROM highscores WHERE userId = (SELECT id FROM users WHERE username = ?);',
+                [body.usernameDelete]
+            );
+            await connection.execute(
+                'DELETE FROM users WHERE username = ?;',
+                [body.usernameDelete]
+            );
+            connection.release();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'User deleted successfully' }));
         }
 
-        if (!username) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'username is required' }));
-            return;
-        }
-
-        const dataOld = await fs.readFile(filePath, 'utf-8');
-        const users = dataOld ? JSON.parse(dataOld) : [];
-
-        const index = users.findIndex(u => u.username === username);
-        if (index === -1) {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'User not found' }));
-            return;
-        }
-
-        users.splice(index, 1);
-        await fs.writeFile(filePath, JSON.stringify(users, null, 2), 'utf-8');
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'User deleted successfully' }));
-        return;
     } catch (error) {
-        console.error('Error in deleteRouter:', error);
+        console.error('Error in delete route:', error);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Internal server error' }));
-        return;
-        //used copillot for auto complete
-    }
-}
+        res.end(JSON.stringify({ message: 'Error processing delete request' }));
+    }}

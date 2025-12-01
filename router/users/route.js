@@ -1,14 +1,16 @@
-import { promises as fs } from 'fs';
-
-const filePath = './users.json';
+import pool from '../../config/db.js';
 
 export default async function router(req, res) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      const connection = await pool.getConnection();
+      const [users] = await connection.query('SELECT id, username, powerLevel FROM users LIMIT 2');
+      connection.release();
+      
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(content);
+      res.end(JSON.stringify(users));
     } catch (error) {
+      console.error('Database error:', error);
       res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Error reading file');
+      res.end('Error fetching users from database');
     }
 }
